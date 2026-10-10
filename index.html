@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>20-20-20 Eye Break</title>
+<meta name="description" content="A Chrome extension that reminds you to rest your eyes every 20 minutes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800;900&family=Source+Code+Pro:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap">
+<style>
+/* Layout: eye-chart hero, then a working eye diagram, then plain sections on a single 1080px column. */
+:root {
+  --paper: #ffffff;
+  --panel: #ffffff;
+  --ink: #151515;
+  --muted: #64646d;
+  --line: #e6e6e9;
+  --accent: #e0234e;
+  --accent-ink: #ffffff;
+  --grad: linear-gradient(90deg, #ea2845, #ea2868);
+  --mint: #ea2868;
+  --mint-soft: #fde8ec;
+  --strain: #d97706;
+  --strain-soft: #fdf0dc;
+  --tissue: #f3e3e3;
+  --night: #121214;
+  --night-ink: #f2f2f3;
+
+  --f-display: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "Source Code Pro", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-arabic: "IBM Plex Sans Arabic", "Noto Sans Arabic", Tahoma, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e0e10; --panel: #18181b; --ink: #f2f2f3; --muted: #a1a1aa; --line: #2a2a2f;
+    --accent: #f0466a; --accent-ink: #ffffff; --mint: #f0466a; --mint-soft: #3a1520;
+    --strain: #f5a524; --strain-soft: #3a2a10; --tissue: #2a1d20; --night: #0a0a0b; --night-ink: #f2f2f3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e0e10; --panel: #18181b; --ink: #f2f2f3; --muted: #a1a1aa; --line: #2a2a2f;
+  --accent: #f0466a; --accent-ink: #ffffff; --mint: #f0466a; --mint-soft: #3a1520;
+  --strain: #f5a524; --strain-soft: #3a2a10; --tissue: #2a1d20; --night: #0a0a0b; --night-ink: #f2f2f3;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 400 17px/1.6 var(--f-body);
+  padding-inline: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h2 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 21px; font-weight: 700; }
+p { margin: 0; }
+.lede { color: var(--muted); font-size: 19px; max-width: 62ch; }
+.label {
+  font: 600 12px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted);
+}
+section { padding-block: 72px; border-top: 1px solid var(--line); }
+.section-head { display: grid; gap: 14px; margin-bottom: 36px; }
+
+/* ---------- nav ---------- */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  margin-inline: -20px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font: 800 17px/1 var(--f-display); }
+.brand svg { flex: none; }
+.nav-links { display: flex; gap: 22px; margin-inline-start: auto; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 15px; }
+.nav-links a:hover { color: var(--ink); }
+@media (max-width: 720px) { .nav-links a:not(.keep) { display: none; } }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 9px; font: 600 15px/1 var(--f-body);
+  padding: 14px 20px; border-radius: 10px; text-decoration: none; cursor: pointer; border: 1px solid transparent;
+}
+.btn-primary { background: var(--grad); color: var(--accent-ink); box-shadow: 0 8px 24px -10px rgba(234, 40, 69, .7); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { border-color: var(--line); color: var(--ink); background: var(--panel); }
+.btn-ghost:hover { border-color: var(--muted); }
+
+/* ---------- hero ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; padding-block: 64px 80px; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 40px; padding-block: 40px 56px; } }
+.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.hero h1 { font-size: clamp(40px, 6vw, 66px); font-weight: 900; letter-spacing: -0.015em; line-height: 1.02; }
+.hero h1 em { font-style: normal; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lede { font-size: 19px; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.small-note { font-size: 14px; color: var(--muted); }
+
+.chart {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 34px 28px 26px; display: grid; gap: 6px; min-width: 0;
+  box-shadow: 0 1px 0 var(--line), 0 24px 48px -32px rgba(20,34,32,.35);
+}
+.chart-row { display: grid; grid-template-columns: 64px minmax(0,1fr) 64px; align-items: center; gap: 8px; }
+.chart-row .snellen { font: 500 11px/1 var(--f-mono); color: var(--muted); letter-spacing: .04em; }
+.chart-row .snellen:last-child { text-align: end; }
+.chart-row .letters {
+  font-family: var(--f-display); font-weight: 800; text-align: center;
+  letter-spacing: .14em; line-height: 1.05; white-space: nowrap; overflow: hidden;
+}
+.r1 .letters { font-size: clamp(76px, 12vw, 132px); letter-spacing: .02em; }
+.r2 .letters { font-size: clamp(34px, 5.2vw, 56px); }
+.r3 .letters { font-size: clamp(26px, 3.9vw, 42px); }
+.r4 .letters { font-size: clamp(18px, 2.6vw, 27px); color: var(--accent); }
+.r5 .letters { font-size: clamp(12px, 1.6vw, 16px); letter-spacing: .24em; font-weight: 600; }
+.chart-row.redline { border-top: 2px solid var(--accent); padding-top: 10px; margin-top: 6px; }
+.chart-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); font: 500 11px/1.4 var(--f-mono); color: var(--muted); letter-spacing: .04em; }
+@media (max-width: 480px) {
+  .chart { padding: 26px 14px 20px; }
+  .chart-row { grid-template-columns: 44px minmax(0,1fr) 44px; }
+  .chart-row .snellen { font-size: 9.5px; }
+}
+
+/* ---------- eye lab ---------- */
+.lab { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 900px) { .lab { grid-template-columns: 1fr; } }
+.lab-figure { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
+.lab-figure svg { width: 100%; height: auto; display: block; }
+.svg-scroll { overflow-x: auto; }
+.svg-scroll svg { min-width: 480px; }
+.lab-controls { display: grid; gap: 14px; margin-top: 16px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  font: 500 14px/1 var(--f-body); padding: 10px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.seg .play { margin-inline-start: auto; background: var(--grad); color: var(--accent-ink); border-color: transparent; }
+.range-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; align-items: center; font: 500 12px/1 var(--f-mono); color: var(--muted); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+.readout { display: grid; gap: 14px; min-width: 0; }
+.meter { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 8px; }
+.meter .value { font: 700 34px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.meter .value small { font: 500 14px/1 var(--f-mono); color: var(--muted); margin-inline-start: 6px; }
+.bar { height: 8px; border-radius: 4px; background: var(--mint-soft); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--strain); border-radius: 4px; transition: width .15s linear; }
+.state-pill {
+  display: inline-flex; align-items: center; gap: 8px; font: 600 14px/1 var(--f-body);
+  padding: 7px 12px; border-radius: 999px; width: fit-content;
+}
+.state-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.state-pill.rest { background: var(--mint-soft); color: var(--accent); }
+.state-pill.work { background: var(--strain-soft); color: var(--strain); }
+.meter p { font-size: 15px; color: var(--muted); }
+.lab-note { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+/* ---------- benefits ---------- */
+.reasons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+@media (max-width: 820px) { .reasons { grid-template-columns: 1fr; gap: 28px; } }
+.reason { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.reason .fig { font: 700 15px/1 var(--f-mono); color: var(--accent); }
+.reason p { color: var(--muted); font-size: 16px; }
+
+.study {
+  margin-top: 48px; border: 1px solid #26262b;
+  background-image: radial-gradient(ellipse at 90% 0%, rgba(234, 40, 69, .22), transparent 55%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 36px; align-items: center;
+  background: var(--night); color: var(--night-ink); border-radius: 18px; padding: 36px;
+}
+@media (max-width: 820px) { .study { grid-template-columns: 1fr; padding: 26px 22px; gap: 24px; } }
+.study h3 { font-size: 26px; }
+.study p { color: color-mix(in srgb, var(--night-ink) 75%, transparent); font-size: 16px; margin-top: 12px; }
+.study a { color: #f46b88; }
+.study .label { color: #f46b88; }
+.timeline { display: grid; gap: 10px; }
+.tl-row { display: grid; grid-template-columns: 120px minmax(0,1fr); gap: 14px; align-items: center; font-size: 14px; }
+.tl-row span:first-child { font: 500 12px/1.3 var(--f-mono); color: color-mix(in srgb, var(--night-ink) 65%, transparent); }
+.tl-bar { height: 30px; border-radius: 6px; display: flex; align-items: center; padding-inline: 12px; font: 600 13px/1 var(--f-body); color: #151515; }
+.tl-bar.base { background: #f5a524; width: 100%; }
+.tl-bar.on { background: linear-gradient(90deg, #ea2845, #ea2868); color: #fff; width: 62%; }
+.tl-bar.off { background: #f5a524; width: 94%; }
+@media (max-width: 480px) { .tl-row { grid-template-columns: 1fr; gap: 6px; } }
+
+/* ---------- modes ---------- */
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+@media (max-width: 820px) { .modes { grid-template-columns: 1fr; } }
+.mode { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.mode p { color: var(--muted); font-size: 16px; }
+.browser { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.browser-bar { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.browser-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.browser-bar .url { margin-inline-start: 10px; flex: 1; height: 18px; border-radius: 9px; background: var(--paper); }
+.screen { position: relative; aspect-ratio: 16 / 10; max-width: 100%; padding: 18px; overflow: hidden; }
+.fake-text { display: grid; gap: 9px; }
+.fake-text b { display: block; height: 9px; border-radius: 4px; background: var(--line); }
+.fake-text b:first-child { height: 14px; width: 55%; margin-bottom: 6px; }
+.mock-overlay {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center;
+  background: radial-gradient(ellipse at 50% 40%, #3a1220 0%, #121214 60%, #0a0a0b 100%); color: #f2f2f3;
+}
+.mock-ring { width: 74px; height: 74px; position: relative; }
+.mock-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.mock-ring b { position: absolute; inset: 0; display: grid; place-items: center; font: 300 28px/1 var(--f-body); font-variant-numeric: tabular-nums; }
+.mock-overlay strong { font: 600 15px/1.2 var(--f-body); }
+.mock-overlay span { font-size: 11.5px; opacity: .7; }
+.mock-toast {
+  position: absolute; bottom: 14px; width: 62%; max-width: 250px;
+  background: #ffffff; color: #151515; border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.22); display: flex; gap: 9px; align-items: flex-start;
+  transition: left .45s ease, right .45s ease;
+  font-family: var(--f-body);
+}
+.mock-toast.ltr { right: 14px; left: auto; }
+.mock-toast.rtl { left: 14px; right: auto; font-family: var(--f-arabic); }
+.mock-toast .ic { flex: none; width: 26px; height: 26px; border-radius: 7px; background: #fde8ec; display: grid; place-items: center; }
+.mock-toast .t { font-size: 11.5px; font-weight: 600; line-height: 1.3; }
+.mock-toast .b { font-size: 10px; color: #5b5b63; line-height: 1.4; margin-top: 2px; }
+.mock-toast .act { margin-top: 6px; display: inline-block; font-size: 9.5px; background: #e0234e; color: #fff; padding: 4px 8px; border-radius: 5px; }
+.lang-switch { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+
+/* ---------- features ---------- */
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; }
+@media (max-width: 720px) { .features { grid-template-columns: 1fr; } }
+.feature { display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 14px; padding-block: 18px; border-bottom: 1px solid var(--line); }
+.feature svg { margin-top: 2px; color: var(--accent); }
+.feature strong { display: block; font-weight: 600; margin-bottom: 3px; }
+.feature span { color: var(--muted); font-size: 15.5px; }
+
+/* ---------- install ---------- */
+.ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+@media (max-width: 820px) { .ways { grid-template-columns: 1fr; } }
+.way { display: grid; gap: 16px; align-content: start; min-width: 0; padding: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.way.main { border-color: var(--accent); }
+.way:only-child { grid-column: 1 / -1; }
+.way .tag { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.way p { color: var(--muted); font-size: 16px; }
+.way .btn { width: fit-content; }
+.btn[aria-disabled="true"] { opacity: .5; pointer-events: none; box-shadow: none; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 36px minmax(0,1fr); gap: 12px; align-items: start; counter-increment: s; font-size: 16px; }
+.steps li::before {
+  content: counter(s); width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--accent);
+  display: grid; place-items: center; font: 600 14px/1 var(--f-mono); color: var(--accent);
+}
+.steps code { font: 500 14px/1 var(--f-mono); background: var(--mint-soft); padding: 3px 6px; border-radius: 5px; color: var(--ink); overflow-wrap: anywhere; }
+
+/* ---------- sources ---------- */
+.sources { display: grid; gap: 0; }
+.source { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: center; padding-block: 20px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.source:first-child { border-top: 1px solid var(--line); }
+.source strong { display: block; font-weight: 600; font-size: 17px; }
+.source span { color: var(--muted); font-size: 15px; }
+.source .go { font: 500 13px/1 var(--f-mono); color: var(--accent); white-space: nowrap; }
+.source:hover strong { color: var(--accent); }
+
+/* ---------- support ---------- */
+.support { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 820px) { .support { grid-template-columns: 1fr; gap: 24px; } }
+.support-links { display: grid; gap: 12px; }
+.pay {
+  display: grid; grid-template-columns: 44px minmax(0,1fr) auto; gap: 14px; align-items: center;
+  padding: 16px 18px; border-radius: 14px; text-decoration: none; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line);
+}
+.pay:hover { border-color: var(--accent); }
+.pay .logo { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; }
+.pay.kofi .logo { background: #ff5e5b; color: #fff; }
+.pay.paypal .logo { background: #e7eefc; color: #003087; }
+.pay strong { display: block; font-weight: 600; }
+.pay span { color: var(--muted); font-size: 14px; }
+.pay .arrow { font: 500 18px/1 var(--f-mono); color: var(--muted); }
+
+/* ---------- footer ---------- */
+footer { border-top: 1px solid var(--line); padding-block: 32px 48px; display: grid; gap: 10px; font-size: 14px; color: var(--muted); }
+footer p { max-width: 75ch; }
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><defs><linearGradient id="bg" x1="0" x2="1"><stop offset="0" stop-color="#ea2845"/><stop offset="1" stop-color="#ea2868"/></linearGradient></defs><rect width="26" height="26" rx="6" fill="url(#bg)"/><ellipse cx="13" cy="13" rx="9" ry="5.6" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="13" cy="13" r="3.2" fill="#fff"/><circle cx="13" cy="13" r="1.4" fill="#151515"/></svg>
+      20-20-20 Eye Break
+    </a>
+    <div class="nav-links">
+      <a href="#eye">Your eye</a>
+      <a href="#why">Why it helps</a>
+      <a href="#modes">Modes</a>
+      <a href="#install">Install</a>
+      <a class="keep" href="#support">Support</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap" id="top">
+
+  <header class="hero">
+    <div class="hero-copy">
+      <span class="label">Free Chrome extension</span>
+      <h1>Your eyes do close work all day. Give them <em>20 seconds</em> of distance.</h1>
+      <p class="lede">Every 20 minutes, Eye Break reminds you to look at something about 20 feet (6 m) away for 20 seconds. Pick a full-screen break that counts down for you, or a quiet card in the corner.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#install">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M4.2 16.5l4.8-2.8M19.8 16.5 15 13.7"/></svg>
+          Add to Chrome
+        </a>
+        <a class="btn btn-ghost" href="#eye">See what it does to your eye</a>
+      </div>
+      <p class="small-note">English, العربية and Français. No account, no tracking.</p>
+    </div>
+
+    <div class="chart" role="img" aria-label="An eye chart that reads: 20 minutes, 20 feet, 20 seconds, look away, blink and breathe.">
+      <div class="chart-row r1"><span class="snellen">20/200</span><span class="letters">20</span><span class="snellen">MIN</span></div>
+      <div class="chart-row r2"><span class="snellen">20/100</span><span class="letters">20 FT</span><span class="snellen">6 M</span></div>
+      <div class="chart-row r3"><span class="snellen">20/70</span><span class="letters">20 SEC</span><span class="snellen">0.17 D</span></div>
+      <div class="chart-row r4 redline"><span class="snellen">20/40</span><span class="letters">LOOK AWAY</span><span class="snellen"></span></div>
+      <div class="chart-row r5"><span class="snellen">20/20</span><span class="letters">BLINK · BREATHE</span><span class="snellen"></span></div>
+      <div class="chart-foot"><span>VIEWING DISTANCE 6 M</span><span>EYE BREAK · REV. 1.0</span></div>
+    </div>
+  </header>
+
+  <section id="eye" aria-labelledby="eye-h">
+    <div class="section-head">
+      <span class="label">Inside your eye</span>
+      <h2 id="eye-h">What staring at a screen asks of your eye</h2>
+      <p class="lede">To see something close, a ring of muscle around the lens (the ciliary muscle) squeezes, and the lens bulges to bend light more. Looking far away lets that muscle let go and the lens flatten. Move the slider or play a break to see it.</p>
+    </div>
+
+    <div class="lab">
+      <div class="lab-figure">
+        <div class="svg-scroll">
+        <svg id="eyeSvg" viewBox="0 24 670 330" role="img" aria-labelledby="eyeTitle eyeDesc">
+          <title id="eyeTitle">Cross-section of the eye focusing</title>
+          <desc id="eyeDesc">The lens gets rounder and the ciliary muscle tightens when the eye focuses on something near. When looking far away, the muscle relaxes and the lens flattens.</desc>
+          <defs>
+            <marker id="arrowHead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/>
+            </marker>
+          </defs>
+          <!-- object being looked at -->
+          <g id="object">
+            <line id="objLine" x1="0" y1="190" x2="0" y2="150" stroke="var(--ink)" stroke-width="2.5" marker-end="url(#arrowHead)"/>
+            <text id="objLabel" x="0" y="222" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="var(--muted)">60 cm</text>
+          </g>
+          <!-- light rays -->
+          <g id="rays" stroke="var(--accent)" stroke-width="1.6" fill="none" opacity=".85"></g>
+          <!-- eyeball -->
+          <circle cx="430" cy="190" r="150" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5"/>
+          <path d="M 548 98 A 150 150 0 0 1 548 282" fill="none" stroke="var(--strain)" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+          <text x="600" y="92" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="var(--muted)">retina</text>
+          <path d="M 578 172 L 640 166 L 640 214 L 578 208" fill="var(--tissue)" stroke="var(--ink)" stroke-width="2"/>
+          <!-- cornea -->
+          <path d="M 300 118 Q 236 190 300 262" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+          <text x="214" y="112" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="var(--muted)">cornea</text>
+          <!-- iris -->
+          <line x1="316" y1="128" x2="316" y2="160" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+          <line x1="316" y1="220" x2="316" y2="252" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+          <!-- zonules -->
+          <g id="zonules" stroke="var(--muted)" stroke-width="1.3" fill="none"></g>
+          <!-- ciliary muscle -->
+          <g id="ciliary">
+            <ellipse id="cilTop" cx="350" cy="90" rx="16" ry="14" fill="var(--mint)"/>
+            <ellipse id="cilTopStrain" cx="350" cy="90" rx="16" ry="14" fill="var(--strain)" opacity="0"/>
+            <ellipse id="cilBot" cx="350" cy="290" rx="16" ry="14" fill="var(--mint)"/>
+            <ellipse id="cilBotStrain" cx="350" cy="290" rx="16" ry="14" fill="var(--strain)" opacity="0"/>
+          </g>
+          <!-- lens -->
+          <ellipse id="lens" cx="350" cy="190" rx="24" ry="56" fill="var(--mint-soft)" stroke="var(--accent)" stroke-width="2.5"/>
+          <!-- labels -->
+          <g font-family="IBM Plex Sans, sans-serif" font-size="13" fill="var(--muted)">
+            <line x1="366" y1="78" x2="420" y2="44" stroke="var(--muted)" stroke-width="1"/>
+            <text x="424" y="42">ciliary muscle</text>
+            <line x1="372" y1="214" x2="430" y2="246" stroke="var(--muted)" stroke-width="1"/>
+            <text x="434" y="252">lens</text>
+            <text id="focusLabel" x="520" y="330" text-anchor="middle">image lands here</text>
+          </g>
+          <circle cx="580" cy="190" r="4" fill="var(--accent)"/>
+        </svg>
+        </div>
+
+        <div class="lab-controls">
+          <div class="seg" role="group" aria-label="Where you are looking">
+            <button type="button" id="btnNear" aria-pressed="true">At the screen · 60 cm</button>
+            <button type="button" id="btnFar" aria-pressed="false">Look away · 6 m</button>
+            <button type="button" class="play" id="btnPlay">▶ Play a 20-second break</button>
+          </div>
+          <div class="range-row">
+            <span>30 cm</span>
+            <input type="range" id="dist" min="0" max="1000" value="231" aria-label="Distance to what you are looking at">
+            <span>6 m</span>
+          </div>
+        </div>
+        <p class="lab-note">Diagram is simplified and the shape change is exaggerated so you can see it. The real lens changes by fractions of a millimetre.</p>
+      </div>
+
+      <div class="readout" aria-live="polite">
+        <div class="meter">
+          <span class="label">Looking at something</span>
+          <div class="value" id="rDist">60<small>cm away</small></div>
+        </div>
+        <div class="meter">
+          <span class="label">Focusing effort</span>
+          <div class="value" id="rDiop">1.67<small>diopters</small></div>
+          <div class="bar" aria-hidden="true"><i id="rBar"></i></div>
+          <p>Diopters measure how hard the eye focuses: 1 divided by the distance in metres.</p>
+        </div>
+        <div class="meter">
+          <span class="label">Ciliary muscle</span>
+          <span class="state-pill work" id="rState">Squeezing to hold focus</span>
+          <p id="rText">Held like this for hours, the muscle gets tired. That is the heavy, achy feeling at the end of a screen day.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="why" aria-labelledby="why-h">
+    <div class="section-head">
+      <span class="label">Why it helps</span>
+      <h2 id="why-h">Twenty seconds that undo three small habits</h2>
+      <p class="lede">A 20-second break is rest, not a workout. Looking far away gives your focusing muscle a moment off, so it starts the next 20 minutes fresh.</p>
+    </div>
+
+    <div class="reasons">
+      <div class="reason">
+        <span class="fig">1.67 D → 0.17 D</span>
+        <h3>Your focusing muscle relaxes</h3>
+        <p>At screen distance the eye works at about 1.7 diopters of effort. At 6 m it drops to almost nothing. That release is what eases the tired, strained feeling.</p>
+      </div>
+      <div class="reason">
+        <span class="fig">Blink, blink</span>
+        <h3>You start blinking again</h3>
+        <p>People blink less while looking at screens, and blinking is what keeps the surface of the eye moist. A pause from the screen brings natural blinking back and helps with dry, gritty eyes.</p>
+      </div>
+      <div class="reason">
+        <span class="fig">Eyes uncross</span>
+        <h3>Your eyes stop turning inward</h3>
+        <p>To look at something close, both eyes rotate slightly toward your nose and hold there. Looking far lets them point straight again, so those muscles get a break too.</p>
+      </div>
+    </div>
+
+    <div class="study">
+      <div>
+        <span class="label">The research</span>
+        <h3 style="margin-top:10px">The habit only works while something reminds you</h3>
+        <p>In a 2022 study published in <em>Contact Lens &amp; Anterior Eye</em>, 29 computer users with eye strain used software that reminded them to follow the 20-20-20 rule for two weeks. They took more frequent breaks, and their eye strain and dry eye symptoms went down. One week after the reminders stopped, the improvement was gone.</p>
+        <p>That is the reason this extension exists: it keeps reminding you, so the benefit keeps going. <a href="https://research.aston.ac.uk/en/publications/the-effects-of-breaks-on-digital-eye-strain-dry-eye-and-binocular/" target="_blank" rel="noopener">Read the study</a>.</p>
+      </div>
+      <div class="timeline" role="img" aria-label="Illustration: symptoms at the start, lower during two weeks of reminders, back up one week after reminders stopped. Bar lengths are illustrative, not measured values.">
+        <div class="tl-row"><span>Before</span><div class="tl-bar base">Eye strain symptoms</div></div>
+        <div class="tl-row"><span>2 weeks with reminders</span><div class="tl-bar on">Symptoms go down</div></div>
+        <div class="tl-row"><span>1 week after stopping</span><div class="tl-bar off">Back where they were</div></div>
+        <p style="font-size:12.5px;margin-top:6px">Bars show the direction of the findings, not the measured values.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="modes" aria-labelledby="modes-h">
+    <div class="section-head">
+      <span class="label">Two ways to take a break</span>
+      <h2 id="modes-h">Strict when you need it, gentle when you don't</h2>
+    </div>
+
+    <div class="modes">
+      <div class="mode">
+        <div class="browser" aria-hidden="true">
+          <div class="browser-bar"><i></i><i></i><i></i><span class="url"></span></div>
+          <div class="screen">
+            <div class="fake-text"><b></b><b></b><b style="width:92%"></b><b style="width:84%"></b><b></b><b style="width:70%"></b></div>
+            <div class="mock-overlay">
+              <div class="mock-ring">
+                <svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" fill="none" stroke="rgba(242,242,243,.15)" stroke-width="5"/><circle id="mockArc" cx="40" cy="40" r="34" fill="none" stroke="#ea2845" stroke-width="5" stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="74"/></svg>
+                <b id="mockNum">13</b>
+              </div>
+              <strong>Time for an eye break</strong>
+              <span>Look at something about 20 feet (6 m) away</span>
+            </div>
+          </div>
+        </div>
+        <h3>Full-screen break</h3>
+        <p>When 20 minutes are up, the page is covered by a calm screen that counts down 20 seconds. Videos pause and resume after. Switching tabs doesn't get you out of it, and you can turn off the Skip button if you want no way around it.</p>
+      </div>
+
+      <div class="mode">
+        <div class="browser" aria-hidden="true">
+          <div class="browser-bar"><i></i><i></i><i></i><span class="url"></span></div>
+          <div class="screen">
+            <div class="fake-text" id="mockText"><b></b><b></b><b style="width:92%"></b><b style="width:84%"></b><b></b><b style="width:70%"></b></div>
+            <div class="mock-toast ltr" id="mockToast">
+              <div class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e0234e" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <div>
+                <div class="t" id="mtT">20-20-20 eye break</div>
+                <div class="b" id="mtB">Look at something 20 feet away for 20 seconds.</div>
+                <span class="act" id="mtA">Start 20s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <h3>Corner reminder</h3>
+        <p>A small card slides in without stopping what you're doing. It sits on the side your language reads from: bottom-left for Arabic, bottom-right for English and French.</p>
+        <div class="lang-switch">
+          <span>Try it:</span>
+          <div class="seg" role="group" aria-label="Reminder language">
+            <button type="button" data-lang="en" aria-pressed="true">English</button>
+            <button type="button" data-lang="ar" aria-pressed="false" style="font-family:var(--f-arabic)">العربية</button>
+            <button type="button" data-lang="fr" aria-pressed="false">Français</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="feat-h">
+    <div class="section-head">
+      <span class="label">Details</span>
+      <h2 id="feat-h">Small things that make it pleasant to live with</h2>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <div><strong>Knows when you've stepped away</strong><span>Lock your screen or leave the computer for 10 minutes and the timer starts over when you're back. Your eyes already rested.</span></div>
+      </div>
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c-1 4-4 7-7 8"/><path d="m13 21 4-9 4 9M14.5 18h5"/></svg>
+        <div><strong>Arabic, English and French</strong><span>Follows Chrome's language automatically, or pick one. Arabic reads right to left everywhere, including the popup.</span></div>
+      </div>
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9v6M14 9v6"/></svg>
+        <div><strong>Pauses your video for you</strong><span>During a full-screen break, playing videos pause and pick up where they left off.</span></div>
+      </div>
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <div><strong>Nothing leaves your computer</strong><span>No account, no analytics, no network requests. Your settings are saved in Chrome and that's all.</span></div>
+      </div>
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>
+        <div><strong>Light and dark</strong><span>The reminder card matches your system theme, so it never flashes white at night.</span></div>
+      </div>
+      <div class="feature">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <div><strong>Break on demand</strong><span>Click the toolbar icon to see the time until your next break, or take one right now.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" aria-labelledby="install-h">
+    <div class="section-head">
+      <span class="label">Install</span>
+      <h2 id="install-h">Install from the Chrome Web Store</h2>
+      <p class="lede">Get it from the Chrome Web Store and Chrome keeps it up to date for you.</p>
+    </div>
+    <div class="ways">
+      <div class="way main">
+        <span class="tag">Recommended</span>
+        <h3>Chrome Web Store</h3>
+        <p>One click to install. Chrome keeps it up to date for you.</p>
+        <a class="btn btn-primary" id="storeLink" href="#" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M4.2 16.5l4.8-2.8M19.8 16.5 15 13.7"/></svg>
+          <span>Add to Chrome</span>
+        </a>
+        <p class="small-note" id="storeNote" hidden>The Web Store listing is under review. Check back soon.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="read" aria-labelledby="read-h">
+    <div class="section-head">
+      <span class="label">Read more</span>
+      <h2 id="read-h">From eye doctors and researchers</h2>
+    </div>
+    <div class="sources">
+      <a class="source" href="https://aao.org/newsroom/news-releases/detail/protect-your-eyes-in-home-office" target="_blank" rel="noopener">
+        <div><strong>Tips for easing eye strain from screen time</strong><span>American Academy of Ophthalmology. Explains the 20-20-20 rule, why we blink less at screens, and why screens don't cause permanent damage.</span></div>
+        <span class="go">aao.org ↗</span>
+      </a>
+      <a class="source" href="https://research.aston.ac.uk/en/publications/the-effects-of-breaks-on-digital-eye-strain-dry-eye-and-binocular/" target="_blank" rel="noopener">
+        <div><strong>The effects of breaks on digital eye strain, dry eye and binocular vision: testing the 20-20-20 rule</strong><span>Talens-Estarelles et al., Contact Lens &amp; Anterior Eye, 2022. The reminder study described above.</span></div>
+        <span class="go">aston.ac.uk ↗</span>
+      </a>
+      <a class="source" href="https://www.healthline.com/health/eye-health/20-20-20-rule" target="_blank" rel="noopener">
+        <div><strong>The 20-20-20 rule: does it help prevent eye strain?</strong><span>Healthline. A plain-language overview of symptoms and other ways to reduce strain.</span></div>
+        <span class="go">healthline.com ↗</span>
+      </a>
+    </div>
+  </section>
+
+  <section id="support" aria-labelledby="support-h">
+    <div class="support">
+      <div class="section-head" style="margin:0">
+        <span class="label">Support</span>
+        <h2 id="support-h">Free to use. Coffee is welcome.</h2>
+        <p class="lede">Eye Break has no ads and collects nothing. If it saves your eyes on long days, you can help keep it maintained.</p>
+      </div>
+      <div class="support-links">
+        <a class="pay kofi" href="https://ko-fi.com/zakariaba" target="_blank" rel="noopener">
+          <span class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M10.5 15.5s-3-1.8-3-3.6a1.5 1.5 0 0 1 3-.4 1.5 1.5 0 0 1 3 .4c0 1.8-3 3.6-3 3.6z" fill="currentColor" stroke="none"/></svg></span>
+          <span><strong>Support on Ko-fi</strong><span>One-off or monthly, by card</span></span>
+          <span class="arrow">↗</span>
+        </a>
+        <a class="pay paypal" href="https://paypal.me/zakariabali" target="_blank" rel="noopener">
+          <span class="logo"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.2 21H4.6a.5.5 0 0 1-.5-.6L6.9 3.4A.7.7 0 0 1 7.6 3h6.2c3.4 0 5.4 1.8 4.9 4.9-.6 3.6-3 5.3-6.4 5.3H10a.7.7 0 0 0-.7.6L8.2 21z"/></svg></span>
+          <span><strong>Donate with PayPal</strong><span>Any amount, any currency</span></span>
+          <span class="arrow">↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong style="color:var(--ink)">20-20-20 Eye Break</strong> is a reminder tool, not medical advice. If your eyes stay sore, your vision is blurry, or you get regular headaches even with breaks, see an optometrist or ophthalmologist.</p>
+    <p>Made with care for people who spend their days at screens.</p>
+  </footer>
+</main>
+
+<script>
+(() => {
+  // Paste the Chrome Web Store listing URL here once it's published.
+  const STORE_URL = "";
+
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (id) => document.getElementById(id);
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  // ----- distance model -----
+  const MIN_D = 0.3, MAX_D = 6;                        // metres
+  const sliderToDist = (v) => MIN_D * Math.pow(MAX_D / MIN_D, v / 1000);
+  const distToSlider = (d) => 1000 * Math.log(d / MIN_D) / Math.log(MAX_D / MIN_D);
+
+  const rays = $("rays"), zon = $("zonules");
+  const rayLines = [], zonPaths = [];
+  for (let i = 0; i < 4; i++) {
+    const a = document.createElementNS(NS, "path"); rays.appendChild(a); rayLines.push(a);
+  }
+  for (let i = 0; i < 6; i++) {
+    const z = document.createElementNS(NS, "path"); zon.appendChild(z); zonPaths.push(z);
+  }
+
+  function draw(d) {
+    const diop = 1 / d;
+    // effort 0 (6 m) .. 1 (40 cm and closer), exaggerated for visibility
+    const t = clamp((diop - 1 / MAX_D) / (2.5 - 1 / MAX_D), 0, 1);
+
+    // lens
+    const lrx = lerp(15, 34, t), lry = lerp(60, 49, t);
+    $("lens").setAttribute("rx", lrx.toFixed(1));
+    $("lens").setAttribute("ry", lry.toFixed(1));
+
+    // ciliary muscle: contracts (thicker, pulls toward lens)
+    const crx = lerp(13, 19, t), cry = lerp(11, 19, t);
+    const cyT = lerp(84, 102, t), cyB = 380 - cyT;
+    ["cilTop", "cilTopStrain"].forEach((id) => { const e = $(id); e.setAttribute("cy", cyT); e.setAttribute("rx", crx); e.setAttribute("ry", cry); });
+    ["cilBot", "cilBotStrain"].forEach((id) => { const e = $(id); e.setAttribute("cy", cyB); e.setAttribute("rx", crx); e.setAttribute("ry", cry); });
+    $("cilTopStrain").setAttribute("opacity", t.toFixed(2));
+    $("cilBotStrain").setAttribute("opacity", t.toFixed(2));
+
+    // zonules: taut when relaxed, slack (bowed) when the muscle squeezes
+    const offs = [-12, 0, 12];
+    zonPaths.forEach((p, i) => {
+      const top = i < 3, dx = offs[i % 3];
+      const x1 = 350 + dx, y1 = top ? cyT + cry : cyB - cry;
+      const x2 = 350 + dx * (lrx / 30), y2 = top ? 190 - lry + 4 : 190 + lry - 4;
+      const bow = lerp(0, 9, t) * (i % 2 ? 1 : -1);
+      const mx = (x1 + x2) / 2 + bow, my = (y1 + y2) / 2;
+      p.setAttribute("d", `M${x1.toFixed(1)},${y1.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`);
+    });
+
+    // object position: log distance across the left side
+    const u = Math.log(d / MIN_D) / Math.log(MAX_D / MIN_D); // 0 near .. 1 far
+    const ox = lerp(205, 24, u);
+    $("objLine").setAttribute("x1", ox); $("objLine").setAttribute("x2", ox);
+    $("objLabel").setAttribute("x", ox);
+    $("objLabel").textContent = d < 1 ? Math.round(d * 100) + " cm" : d.toFixed(1).replace(".0", "") + " m";
+
+    // rays: from object point through the lens edge to the retina
+    const hs = [-36, -14, 14, 36];
+    rayLines.forEach((p, i) => {
+      const h = hs[i] * (lry / 56);
+      const sy = 190 + hs[i] * lerp(0, 0.85, u);   // far objects send nearly parallel rays
+      p.setAttribute("d", `M${ox.toFixed(1)},${sy.toFixed(1)} L350,${(190 + h).toFixed(1)} L580,190`);
+    });
+
+    // readouts
+    $("rDist").firstChild.nodeValue = d < 1 ? String(Math.round(d * 100)) : d.toFixed(1).replace(".0", "");
+    $("rDist").querySelector("small").textContent = d < 1 ? "cm away" : "m away";
+    $("rDiop").firstChild.nodeValue = diop.toFixed(2);
+    $("rBar").style.width = (100 * clamp(diop / 3.33, 0, 1)).toFixed(1) + "%";
+
+    const pill = $("rState");
+    if (diop >= 1) {
+      pill.className = "state-pill work"; pill.textContent = "Squeezing to hold focus";
+      $("rText").textContent = "Held like this for hours, the muscle gets tired. That is the heavy, achy feeling at the end of a screen day.";
+    } else if (diop >= 0.4) {
+      pill.className = "state-pill work"; pill.textContent = "Easing off";
+      $("rText").textContent = "Further away, less effort. A window or the end of a corridor works well.";
+    } else {
+      pill.className = "state-pill rest"; pill.textContent = "Relaxed";
+      $("rText").textContent = "At 6 m the muscle is close to fully relaxed and the lens is at its flattest. This is the rest the 20-20-20 rule is after.";
+    }
+
+    $("btnNear").setAttribute("aria-pressed", String(Math.abs(d - 0.6) < 0.02));
+    $("btnFar").setAttribute("aria-pressed", String(Math.abs(d - 6) < 0.05));
+  }
+
+  let current = 0.6, anim = null;
+  function setDist(d, fromSlider) {
+    current = d;
+    if (!fromSlider) $("dist").value = Math.round(distToSlider(d));
+    draw(d);
+  }
+  function tweenTo(target, ms, done) {
+    cancelAnimationFrame(anim);
+    if (reduce || ms <= 0) { setDist(target); done && done(); return; }
+    const from = current, start = performance.now();
+    const step = (now) => {
+      const k = clamp((now - start) / ms, 0, 1);
+      const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      // interpolate in log space so it feels even
+      setDist(Math.exp(lerp(Math.log(from), Math.log(target), e)));
+      if (k < 1) anim = requestAnimationFrame(step); else done && done();
+    };
+    anim = requestAnimationFrame(step);
+  }
+
+  let playTimer = null;
+  function stopPlay() {
+    clearInterval(playTimer); playTimer = null;
+    $("btnPlay").textContent = "▶ Play a 20-second break";
+  }
+
+  $("dist").addEventListener("input", (e) => { stopPlay(); cancelAnimationFrame(anim); setDist(sliderToDist(+e.target.value), true); });
+  $("btnNear").addEventListener("click", () => { stopPlay(); tweenTo(0.6, 900); });
+  $("btnFar").addEventListener("click", () => { stopPlay(); tweenTo(6, 900); });
+  $("btnPlay").addEventListener("click", () => {
+    if (playTimer) { stopPlay(); tweenTo(0.6, 900); return; }
+    tweenTo(6, 1400);
+    let left = 20;
+    $("btnPlay").textContent = "■ Looking away · 20";
+    playTimer = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        stopPlay();
+        tweenTo(0.6, 1400);
+      } else {
+        $("btnPlay").textContent = "■ Looking away · " + left;
+      }
+    }, 1000);
+  });
+
+  setDist(0.6);
+
+  // ----- install links -----
+  const store = $("storeLink");
+  if (STORE_URL) {
+    store.href = STORE_URL;
+  } else {
+    store.setAttribute("aria-disabled", "true");
+    store.removeAttribute("href");
+    $("storeNote").hidden = false;
+  }
+
+  // ----- overlay mock countdown -----
+  let mock = 13;
+  const C = 2 * Math.PI * 34;
+  const tickMock = () => {
+    $("mockNum").textContent = mock;
+    $("mockArc").setAttribute("stroke-dashoffset", (C * (1 - mock / 20)).toFixed(1));
+    mock = mock <= 1 ? 20 : mock - 1;
+  };
+  tickMock();
+  if (!reduce) setInterval(tickMock, 1000);
+
+  // ----- corner mock language -----
+  const TOAST = {
+    en: { dir: "ltr", t: "20-20-20 eye break", b: "Look at something 20 feet away for 20 seconds.", a: "Start 20s" },
+    ar: { dir: "rtl", t: "استراحة العين 20-20-20", b: "انظر إلى شيء يبعد 6 أمتار لمدة 20 ثانية.", a: "ابدأ 20 ثانية" },
+    fr: { dir: "ltr", t: "Pause yeux 20-20-20", b: "Regardez à 6 mètres pendant 20 secondes.", a: "Lancer 20 s" }
+  };
+  document.querySelectorAll("[data-lang]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = TOAST[btn.dataset.lang];
+      const toast = $("mockToast");
+      toast.className = "mock-toast " + s.dir;
+      toast.setAttribute("dir", s.dir);
+      $("mockText").setAttribute("dir", s.dir);
+      $("mtT").textContent = s.t; $("mtB").textContent = s.b; $("mtA").textContent = s.a;
+      document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+    });
+  });
+})();
+</script>
+</body>
+</html>
